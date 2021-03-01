@@ -73,6 +73,12 @@ function confirm(title, text = "", icon = "warning", funcThen = () => { }, funcC
     });
 }
 
+function setTileWeb(text){
+    let title = document.getElementsByTagName("title");
+    title[0].innerText = text;
+}
+
+
 export {
     formatMoney,
     nonAccentVietnamese,
@@ -80,4 +86,5 @@ export {
     dateMaterialToMilis,
     alert,
     confirm,
+    setTileWeb,
 }

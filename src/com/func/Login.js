@@ -49,7 +49,7 @@ const useStyles = makeStyles((theme) => ({
 
 const URL = "https://60177109f534300017a45537.mockapi.io/account";
 export default function Login({
-    guest, setTitle, setGuest,
+    guest, setTitle, setGuest, setProductOrder
 }) {
     const classes = useStyles();
     const history = useHistory();
@@ -79,11 +79,12 @@ export default function Login({
             (data) => {
                 setGuest(data);
                 setLoad(false);
+                setProductOrder([]);
                 alert("Thành công!", "Đăng nhập thành công!", "success", function(){history.push("/order")});
             },
             (e) => {
                 setLoad(false);
-                alert("Thất bại!", "Đăng nhập thành công!", "error");
+                alert("Thất bại!", "Đăng nhập thất bại!", "error");
             }
         );
     }

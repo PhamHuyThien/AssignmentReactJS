@@ -21,7 +21,7 @@ import ListItemText from '@material-ui/core/ListItemText';
 import { useState, useEffect } from "react";
 import { useHistory } from "react-router-dom";
 import axios from "axios";
-import { formatMoney, nonAccentVietnamese } from "../../lib/lib.js";
+import { formatMoney, nonAccentVietnamese, alert } from "../../lib/lib.js";
 import Loading from "./Loading.js";
 
 import { callbackGetVoucher, callbackDeleteVoucher } from "./ManagerVoucher.js";
@@ -80,13 +80,17 @@ const useStyles = makeStyles((theme) => ({
     },
 }));
 
-function AddressForm({ setAndresses, andresses,setLoad}) {
-    useEffect(()=>{
+function AddressForm({
+    setAndresses,
+    andresses,
+    setLoad,
+}) {
+    useEffect(() => {
         loadFake();
     }, []);
-    function loadFake(time=200){
+    function loadFake(time = 200) {
         setLoad(true);
-        setTimeout(()=>{
+        setTimeout(() => {
             setLoad(false);
         }, 200);
     }
@@ -96,7 +100,7 @@ function AddressForm({ setAndresses, andresses,setLoad}) {
             [evt.target.name]: evt.target.value
         }));
     }
-    
+
     return (
         <React.Fragment>
             <Typography variant="h6" gutterBottom>
@@ -144,13 +148,15 @@ function AddressForm({ setAndresses, andresses,setLoad}) {
     );
 }
 
-function PaymentForm({ payment, setPayment, setLoad }) {
-    useEffect(()=>{
+function PaymentForm({
+    payment, setPayment, setLoad,
+}) {
+    useEffect(() => {
         loadFake();
     }, []);
-    function loadFake(time=200){
+    function loadFake(time = 200) {
         setLoad(true);
-        setTimeout(()=>{
+        setTimeout(() => {
             setLoad(false);
         }, 200);
     }
@@ -205,14 +211,14 @@ function PaymentForm({ payment, setPayment, setLoad }) {
 }
 
 function Review({
-    productOrder, andresses, payment, totalPay, setTotalPay, setLoad
+    productOrder, andresses, payment, totalPay, setTotalPay, setLoad,
 }) {
-    useEffect(()=>{
+    useEffect(() => {
         loadFake();
     }, []);
-    function loadFake(time=200){
+    function loadFake(time = 200) {
         setLoad(true);
-        setTimeout(()=>{
+        setTimeout(() => {
             setLoad(false);
         }, 200);
     }
@@ -225,8 +231,10 @@ function Review({
     }
     const onclickActiveVoucherHandle = (evt) => {
         evt.preventDefault();
+        setLoad(true);
         callbackGetVoucher(
             (resp) => {
+                setLoad(false);
                 let voucherTrue = resp.data.filter((v, i) => {
                     return v.code.toUpperCase() == voucherForm;
                 });
@@ -234,17 +242,20 @@ function Review({
                     callbackDeleteVoucher(
                         voucherTrue[0].id,
                         () => {
-                            let payPre = totalPay - voucherTrue[0].discount;
-                            setTotalPay(payPre < 0 ? 0 : payPre);
-                            alert("Sử dụng mã giảm giá thành công!\n" + voucherTrue[0].desc + "!");
+                            alert("Sử dụng mã giảm giá thành công!", voucherTrue[0].desc + "!", "success", () => {
+                                let payPre = totalPay - voucherTrue[0].discount;
+                                setTotalPay(payPre < 0 ? 0 : payPre);
+                            });
                         }
                     );
                 } else {
-                    alert("Mã giảm giá không tồn tại!");
+                    setLoad(false);
+                    alert("Thất bại!", "Mã giảm giá không tồn tại!", "error");
                 }
             },
             (e) => {
-                alert("Không thể đọc dữ liệu voucher từ server!");
+                setLoad(false);
+                alert("Thất bại!", "Không thể đọc dữ liệu voucher từ server!", "error");
             }
         );
     }
@@ -254,16 +265,25 @@ function Review({
             url: "https://60177109f534300017a45537.mockapi.io/voucher"
         }).then((resp) => succ(resp)).catch((e) => err(e));
     }
+
+
     return (
         <React.Fragment>
             <Typography variant="h6" gutterBottom>
                 Xem lại đơn hàng
 		  </Typography>
             <List disablePadding>
-                <ListItem className={classes.listItem}>
-                    <ListItemText primary={productOrder.category.name + " " + productOrder.product.name} secondary={productOrder.product.desc} />
-                    <Typography variant="body2">{formatMoney(productOrder.product.price) + " VNĐ"}</Typography>
-                </ListItem>
+                {
+                    productOrder.map((v, i) => {
+                        return (
+                            <ListItem className={classes.listItem}>
+                                <ListItemText primary={v.category.name + " " + v.product.name} secondary={v.product.desc} />
+                                <Typography variant="body2">{formatMoney(v.product.price) + " VNĐ"}</Typography>
+                            </ListItem>
+                        );
+                    })
+                }
+
                 <ListItem className={classes.listItem}>
                     <Grid container xs="12" sm="12" spacing="3">
                         <Grid item xs="12" sm="9">
@@ -342,11 +362,11 @@ function Review({
 
 
 export default function Checkout({
-    productOrder, guest, setTitle,
+    productOrder, guest, setTitle, setProductOrder,
 }) {
     const history = useHistory();
     useEffect(() => {
-        if (typeof productOrder.category == "undefined" && typeof productOrder.product == "undefined") {
+        if (productOrder.length == 0) {
             history.push("/order");
         }
         setTitle("Thủ tục thanh toán");
@@ -357,24 +377,34 @@ export default function Checkout({
 
     const [andresses, setAddresses] = useState(guest);
     const [payment, setPayment] = useState({ name: nonAccentVietnamese(guest.name).toUpperCase(), code: "1234.5678.9999.9999", ex: "02/2024", cvv: "999" });
-    const [totalPay, setTotalPay] = useState(productOrder.product.price);
+    const [totalPay, setTotalPay] = useState(getTotalPay(productOrder));
 
+    function getTotalPay(productOrder) {
+        let total = 0;
+        for (let i = 0; i < productOrder.length; i++) {
+            total += Number(productOrder[i].product.price);
+        }
+        return total;
+    }
     const handleNext = () => {
         setActiveStep(activeStep + 1);
+        if(activeStep==2){
+            setProductOrder([]);
+            setTimeout(()=>{ history.push("/order")}, 10000);
+        }
     };
 
     const handleBack = () => {
         setActiveStep(activeStep - 1);
     };
-
     function getStepContent(step) {
         switch (step) {
             case 0:
                 return <AddressForm setAddresses={setAddresses} andresses={andresses} setAndresses={setAddresses} setLoad={setLoad} />;
             case 1:
-                return <PaymentForm payment={payment} setPayment={setPayment}  setLoad={setLoad}  />;
+                return <PaymentForm payment={payment} setPayment={setPayment} setLoad={setLoad} />;
             case 2:
-                return <Review productOrder={productOrder} andresses={andresses} payment={payment} totalPay={totalPay} setTotalPay={setTotalPay}  setLoad={setLoad} />;
+                return <Review productOrder={productOrder} andresses={andresses} payment={payment} totalPay={totalPay} setTotalPay={setTotalPay} setLoad={setLoad} />;
             default:
                 throw new Error('Unknown step');
         }
@@ -410,32 +440,35 @@ export default function Checkout({
                     <React.Fragment>
                         {activeStep === 3 ? (
                             <React.Fragment>
-                                <Typography variant="h5" gutterBottom>
-                                    Đặt hàng thành công!
-                </Typography>
-                                <Typography variant="subtitle1">
-                                    Số đơn đặt hàng của bạn là #2001539. Chúng tôi sẽ gửi cho bạn thông tin cập nhật khi đơn hàng của bạn đã được giao.
-                </Typography>
-                            </React.Fragment>
+                            <Typography variant="h5" gutterBottom>
+                                Đặt hàng thành công!
+                                </Typography>
+                            <Typography variant="subtitle1">
+                                Số đơn đặt hàng của bạn là #2001539. Chúng tôi sẽ gửi cho bạn thông tin cập nhật khi đơn hàng của bạn đã được giao.
+                                </Typography>
+                                <Typography variant="subtitle2">
+                                    Trang sẽ trở về trang chủ sau 10s...
+                                </Typography>
+                        </React.Fragment>
                         ) : (
                                 <React.Fragment>
-                                    {getStepContent(activeStep)}
-                                    <div className={classes.buttons}>
-                                        {activeStep !== 0 && (
-                                            <Button onClick={handleBack} className={classes.button}>
-                                                Trở lại
-                                            </Button>
-                                        )}
-                                        <Button
-                                            variant="contained"
-                                            color="primary"
-                                            onClick={handleNext}
-                                            className={classes.button}
-                                        >
-                                            {activeStep === 2 ? 'Đặt hàng' : 'Tiếp theo'}
-                                        </Button>
-                                    </div>
-                                </React.Fragment>
+                            {getStepContent(activeStep)}
+                            <div className={classes.buttons}>
+                                {activeStep !== 0 && (
+                                    <Button onClick={handleBack} className={classes.button}>
+                                        Trở lại
+                                    </Button>
+                                )}
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    onClick={handleNext}
+                                    className={classes.button}
+                                >
+                                    {activeStep === 2 ? 'Đặt hàng' : 'Tiếp theo'}
+                                </Button>
+                            </div>
+                        </React.Fragment>
                             )}
                     </React.Fragment>
                 </Paper>
