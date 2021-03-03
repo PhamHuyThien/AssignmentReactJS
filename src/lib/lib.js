@@ -12,7 +12,7 @@ function formatMoney(amount, decimalCount = 0, decimal = ".", thousands = ",") {
 
         return negativeSign + (j ? i.substr(0, j) + thousands : '') + i.substr(j).replace(/(\d{3})(?=\d)/g, "$1" + thousands) + (decimalCount ? decimal + Math.abs(amount - i).toFixed(decimalCount).slice(2) : "");
     } catch (e) {
-        console.log(e)
+        console.log(e);
     }
 }
 
@@ -73,9 +73,13 @@ function confirm(title, text = "", icon = "warning", funcThen = () => { }, funcC
     });
 }
 
-function setTileWeb(text){
+function isNumber(strNum){
+    return /^-{0,1}[0-9]{1,}(\.{1}[0-9]{1,}){0,1}$/g.test(strNum);
+}
+
+function setTitleWeb(text){
     let title = document.getElementsByTagName("title");
-    title[0].innerText = text;
+    title[0].innerText = text+" - Code By ThienDepZaii!";
 }
 
 
@@ -86,5 +90,6 @@ export {
     dateMaterialToMilis,
     alert,
     confirm,
-    setTileWeb,
+    setTitleWeb,
+    isNumber,
 }

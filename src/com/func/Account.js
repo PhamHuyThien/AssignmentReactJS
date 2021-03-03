@@ -13,14 +13,14 @@ import CardMedia from '@material-ui/core/CardMedia';
 import Button from '@material-ui/core/Button';
 import Typography from '@material-ui/core/Typography';
 
-import { formatMoney, alert, confirm} from "../../lib/lib.js";
+import { formatMoney, alert, confirm, setTitleWeb} from "../../lib/lib.js";
 import Loading from "./Loading.js";
 
 const useStyles = makeStyles((theme) => ({
 	paper: {
 		marginTop: theme.spacing(15),
 		marginLeft: theme.spacing(5),
-		maxWidth: 345
+		maxWidth: 600
 	}
 }));
 
@@ -33,6 +33,7 @@ export default function Account({
     const [load, setLoad] = useState(false);
 	useEffect(() => {
 		setTitle("Tài khoản");
+        setTitleWeb("Tài khoản");
 		if (guest.permission == 2) {
 			history.push("/login");
 		}
@@ -60,7 +61,7 @@ export default function Account({
 						component="img"
 						alt="Contemplative Reptile"
 						height="250"
-						image="https://imgur.com/1aRnaUM.jpg"
+						image="https://zicxaphotos.com/wp-content/uploads/2019/09/girl-xinh-cap-3.jpg"
 						title="Contemplative Reptile"
 					/>
 					<CardContent>

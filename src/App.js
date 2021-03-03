@@ -11,12 +11,9 @@ import { useState } from "react";
 import { Switch, BrowserRouter as Router, Route } from "react-router-dom";
 import React from "react";
 
-import { setTileWeb } from "./lib/lib.js";
+
 
 function App() {
-    React.useEffect(() => {
-        setTileWeb("ahihiihiih");
-    }, []);
     const [guest, setGuest] = useState({ u: "", p: "", name: "", add: "", phone: "", money: "", permission: 2 });
     const [title, setTitle] = useState("");
     const [productOrder, setProductOrder] = useState([]);
@@ -44,7 +41,7 @@ function App() {
                     <ManagerVoucher guest={guest} setTitle={setTitle} />
                 </Route>
                 <Route>
-                    <Order setTitle={setTitle} setProductOrder={setProductOrder} productOrder={productOrder} />
+                    <Order setTitle={setTitle} productOrder={productOrder} setProductOrder={setProductOrder} productOrder={productOrder} />
                 </Route>
             </Switch>
         </Router>

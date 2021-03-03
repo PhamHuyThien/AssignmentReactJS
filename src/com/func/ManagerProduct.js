@@ -11,6 +11,8 @@ import Button from '@material-ui/core/Button';
 import InputLabel from '@material-ui/core/InputLabel';
 import MenuItem from '@material-ui/core/MenuItem';
 import Select from '@material-ui/core/Select';
+import Snackbar from '@material-ui/core/Snackbar';
+import Alert from '@material-ui/lab/Alert';
 
 import { withStyles, makeStyles } from '@material-ui/core/styles';
 import Table from '@material-ui/core/Table';
@@ -29,7 +31,7 @@ import axios from "axios";
 
 import { URL } from "./ManagerCategory.js";
 import Loading from "./Loading.js";
-import { formatMoney, alert } from "../../lib/lib.js";
+import { formatMoney, alert, isNumber, confirm, setTitleWeb} from "../../lib/lib.js";
 
 const useStyles = makeStyles((theme) => ({
     cont: {
@@ -64,17 +66,34 @@ export default function ManagerProduct({
     const searchs = new URLSearchParams(window.location.search);
     const [form, setForm] = useState({ id: "", portfolio_id: -1, name: "", price: "", desc: "" });
     const [formFilter, setFormFilter] = useState({ portfolio_id: -1 });
+    const [formSearch, setFormSearch] = useState("");
     const [clickId, setClickId] = useState(-1);
     const [category, setCategory] = useState([]);
     const [product, setProduct] = useState([]);
+    const [productRoot, setProductRoot] = useState([]);
     const [idCategory, setIdCategory] = useState(searchs.get("category") == null ? 1 : searchs.get("category"));
     const [page, setPage] = useState(Number(searchs.get("page") == null ? 1 : searchs.get("page")));
     const [load, setLoad] = useState(false);
+
+    const [snackAlert, setSnackAlert] = useState({ open: false, text: "", type: "warning" });
+    function snackBarAlert(text, type = "warning", timeout = 1500, open = true) {
+        setSnackAlert({
+            open: open,
+            text: text,
+            type: type,
+        });
+        if (open == true) {
+            setTimeout(() => {
+                snackBarAlert(text, type, timeout, false);
+            }, timeout);
+        }
+    }
     useEffect(() => {
         if (guest.permission != 0) {
             history.push("/order");
         }
         setTitle("Quản lý sản phẩm");
+        setTitleWeb("Quản lý sản phẩm");
         setLoad(true);
         updateCategory();
     }, []);
@@ -97,8 +116,25 @@ export default function ManagerProduct({
             updateProduct(value, page);
         }
     }
+    function onchangeSearchHandle(evt) {
+        evt.preventDefault();
+        let value = evt.target.value.toLowerCase();
+        setFormSearch(value);
+        if (value.trim() != "") {
+            setProduct(() => {
+                return productRoot.filter((v) => {
+                    return v.name.toLowerCase().indexOf(value) != -1;
+                });
+            });
+        } else {
+            setProduct(productRoot);
+        }
+    }
     const onclickAddHandle = (evt) => {
         evt.preventDefault();
+        if(!checkFormProduct()){
+            return;
+        }
         setLoad(true);
         if (clickId == -1) {
             callbackPostProduct(
@@ -108,7 +144,7 @@ export default function ManagerProduct({
                     setFormFilter({ portfolio_id: form.portfolio_id });
                     setIdCategory(form.portfolio_id);
                     setClickId(-1);
-                    alert("Thành công!", "Thêm mới thành công!", "success", ()=> updateProduct(form.portfolio_id, page));
+                    alert("Thành công!", "Thêm mới thành công!", "success", () => updateProduct(form.portfolio_id, page));
                 },
                 (err) => {
                     setLoad(false);
@@ -125,7 +161,7 @@ export default function ManagerProduct({
                     setFormFilter({ portfolio_id: form.portfolio_id });
                     setIdCategory(form.portfolio_id);
                     setClickId(-1);
-                    alert("Thành công!", "Sửa thành công!", "success", ()=> updateProduct(form.portfolio_id, page));
+                    alert("Thành công!", "Sửa thành công!", "success", () => updateProduct(form.portfolio_id, page));
                 },
                 (err) => {
                     setLoad(false);
@@ -150,19 +186,21 @@ export default function ManagerProduct({
         evt.preventDefault();
         setLoad(true);
         if (clickId != -1) {
-            callbackDeleteProduct(
-                form.portfolio_id,
-                form.id,
-                (resp) => {
-                    setClickId(-1);
-                    alert("Thành công!", "Xóa sản phẩm thành công!", "success", ()=>updateProduct(form.portfolio_id, page));
-                },
-                (err) => {
-                    setLoad(false);
-                    alert("Thất bại!", "Không thể xóa sản phẩm!", "error");
-                }
-            );
-        }else{
+            confirm("Xóa?", "Bạn chắc chắn muốn xóa chứ?", "warning", ()=>{
+                callbackDeleteProduct(
+                    form.portfolio_id,
+                    form.id,
+                    (resp) => {
+                        setClickId(-1);
+                        alert("Thành công!", "Xóa sản phẩm thành công!", "success", () => updateProduct(form.portfolio_id, page));
+                    },
+                    (err) => {
+                        setLoad(false);
+                        alert("Thất bại!", "Không thể xóa sản phẩm!", "error");
+                    }
+                );
+            }, setLoad(false));
+        } else {
             illusionLoading();
         }
     }
@@ -185,12 +223,13 @@ export default function ManagerProduct({
             }
         );
     }
-    const updateProduct = (idCategory, page=1) => {
+    const updateProduct = (idCategory, page = 1) => {
         callbackGetProduct(
             idCategory,
             page,
             (resp) => {
                 setLoad(false);
+                setProductRoot(resp.data);
                 setProduct(resp.data);
             },
             (err) => {
@@ -199,6 +238,25 @@ export default function ManagerProduct({
                 console.log(err);
             }
         );
+    }
+    function checkFormProduct(){
+        if(form.portfolio_id==-1){
+            snackBarAlert("Bạn phải chọn 1 thể loại!");
+            return false;
+        }
+        if(form.name.trim() == ""){
+            snackBarAlert("Tên sản phẩm không được để trống!");
+            return false;
+        }
+        if(isNumber(form.price)===false){
+            snackBarAlert("Giá tiền không hợp lệ!");
+            return false;
+        }
+        if(form.desc.trim() == ""){
+            snackBarAlert("Mô tả không được để trống!");
+            return false;
+        }
+        return true;
     }
     const illusionLoading = (time = 200) => {
         setLoad(true);
@@ -310,18 +368,30 @@ export default function ManagerProduct({
                         </Grid>
                     </Paper>
                 </Grid>
-                <Grid item xs={12} sm={6} className={classes.tabler}>
-                    <Grid item xs={12} sm={4} >
-                        <InputLabel>Lọc Thể loại *</InputLabel>
-                        <Select fullWidth name="portfolio_id" value={formFilter.portfolio_id} onChange={onchangeInputFilterHandler}>
-                            <MenuItem value={-1}>Chọn thể loại...</MenuItem>
-                            {
-                                category.map((v, i) => {
-                                    return (<MenuItem value={v.id}>{v.name}</MenuItem>);
-                                })
-                            }
-                        </Select>
+                <Grid item xs={12} sm={6} className={classes.tabler} >
+                    <Grid container spacing={3}>
+                        <Grid item xs={6} sm={4}  >
+                            <InputLabel>Lọc Thể loại *</InputLabel>
+                            <Select fullWidth name="portfolio_id" value={formFilter.portfolio_id} onChange={onchangeInputFilterHandler}>
+                                <MenuItem value={-1}>Chọn thể loại...</MenuItem>
+                                {
+                                    category.map((v, i) => {
+                                        return (<MenuItem value={v.id}>{v.name}</MenuItem>);
+                                    })
+                                }
+                            </Select>
+                        </Grid>
+                        <Grid item xs={6} sm={4}>
+                            <TextField
+                                name="search"
+                                label="Tìm kiếm"
+                                fullWidth
+                                value={formSearch}
+                                onChange={onchangeSearchHandle}
+                            />
+                        </Grid>
                     </Grid>
+
                     <TableContainer component={Paper}>
                         <Table>
                             <TableHead>
@@ -351,6 +421,9 @@ export default function ManagerProduct({
                     <Pagination count={10} page={page} onChange={onclickPagingingHandler} />
                 </Grid>
             </Grid>
+            <Snackbar open={snackAlert.open} autoHideDuration={1000}>
+                <Alert elevation={6} variant="filled" severity={snackAlert.type}>{snackAlert.text}</Alert>
+            </Snackbar>
         </Container>
     );
 }

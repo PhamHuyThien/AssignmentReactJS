@@ -11,6 +11,9 @@ import { URL } from "./ManagerCategory.js";
 import Loading from "./Loading.js";
 import Checkout from "./order/Checkout.js";
 import Category from "./order/Category.js";
+import Search from "./order/Search.js";
+
+import { setTitleWeb } from "../../lib/lib.js";
 
 const useStyles = makeStyles((theme) => ({
     container: {
@@ -20,16 +23,22 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 export default function Order({
-    setTitle, setProductOrder, productOrder
+    setTitle, productOrder, setProductOrder,
 }) {
+
     const classes = useStyles();
     const history = useHistory();
     const { url } = useRouteMatch();
     const [category, setCategory] = useState([]);
+
+    const [searchCategory, setSearchCategory] = useState(-1);
+    const [searchName, setSearchName] = useState("");
+
     const [load, setLoad] = useState(false);
 
     useEffect(() => {
         setTitle("Đặt hàng");
+        setTitleWeb("Đặt hàng");
         setLoad(true);
         axios({
             method: "GET",
@@ -46,10 +55,10 @@ export default function Order({
     return (
         <Container component="main" sm={12} xs={12} className={classes.container} maxWidth>
             <Loading open={load} />
-            <Checkout productOrder={productOrder} />
+            <Search category={category} setSearchCategory={setSearchCategory} setSearchName={setSearchName} productOrder={productOrder} />
             {
                 category.map((v, i) => {
-                    if(i==0) return (<Category category={v} key={i} setProductOrder={setProductOrder} />);
+                    return (<Category key={i} category={v} productOrder={productOrder} setProductOrder={setProductOrder} searchCategory={searchCategory} searchName={searchName} />);
                 })
             }
         </Container>

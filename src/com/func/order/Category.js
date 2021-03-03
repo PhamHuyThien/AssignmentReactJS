@@ -27,11 +27,14 @@ const useStyles = makeStyles((theme) => ({
         padding: theme.spacing(1),
         marginBottom: theme.spacing(3)
     },
+    hidden: {
+        display: "none",
+    }
 }));
 
 
 export default function Category({
-    category, setProductOrder
+    category, searchCategory, searchName, productOrder, setProductOrder,
 }) {
     const classes = useStyles();
     const [product, setProduct] = useState([]);
@@ -52,7 +55,7 @@ export default function Category({
     }
 
     return (
-        <Paper elevation={3} className={classes.paperContainer}>
+        <Paper elevation={3} className={searchCategory == -1 || category.id == searchCategory ?  classes.paperContainer : classes.hidden }>
             <Grid xs="12" sm="12" >
                 <Paper className={classes.paperTitle} elevation={6}>
                     <Grid container spacing="2" >
@@ -67,11 +70,11 @@ export default function Category({
                 <Grid container justify="left" spacing={6} className={classes.gridContainer}>
                     {
                         product.length != 0 ? product.map((v, i) => {
-                            return (<Product category={category} product={v} setProductOrder={setProductOrder} key={i} />);
+                            return (<Product category={category} product={v} searchName={searchName} productOrder={productOrder} setProductOrder={setProductOrder} key={i} />);
                         }) : (<Typography>Xin chờ</Typography>)
                     }
                 </Grid>
             </Grid>
         </Paper>
-        );
+    );
 }

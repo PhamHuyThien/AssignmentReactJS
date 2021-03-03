@@ -1,6 +1,6 @@
 
 import Grid from "@material-ui/core/Grid";
-import React, {useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import { makeStyles } from '@material-ui/core/styles';
 import Typography from '@material-ui/core/Typography';
 import Card from '@material-ui/core/Card';
@@ -16,50 +16,56 @@ const useStyles = makeStyles((theme) => ({
     media: {
         height: 360,
     },
+    hidden: {
+        display: "none",
+    },
+    show: {
+        display: "block",
+    }
 }));
 
 
 export default function Product({
-    category, product, setProductOrder
+    category, product, searchName, productOrder, setProductOrder,
 }) {
     const classes = useStyles();
     const [isCart, setIsCart] = useState(false);
 
-    function onclickAddToCartHandle(evt, category, product){
-        setIsCart(!isCart);
-        if(isCart){
-            setProductOrder((oldProductOrder)=>{
-                const filter = oldProductOrder.filter((v, i)=>{
-                    // console.log(v);
-                    // console.log(v.category);
-                    // console.log(v.product);
-                    // console.log(category);
-                    // console.log(product);
-                    // console.log(v.category==category);
-                    // console.log(v.product==product);
-                    return !(v.category==category && v.product==product);
+    useEffect(() => {
+        setIsCart((oldIsCart) => {
+            return productOrder.filter((v, i) => {
+                return v.product.id == product.id;
+            }).length == 1;
+        });
+    }, []);
+    function onclickAddToCartHandle(evt, category, product) {
+        if (isCart) {
+            setProductOrder((oldProductOrder) => {
+                const filter = oldProductOrder.filter((v, i) => {
+                    return !(v.category.id == category.id && v.product.id == product.id);
                 });
-                console.log(filter);
                 return filter;
             });
-        }else{
-            setProductOrder((old)=>([
+        } else {
+            setProductOrder((old) => ([
                 ...old,
                 {
                     category: category,
-                    product: product
+                    product: product,
+                    count: 1,
+                    totalMoney: Number(product.price),
                 }
             ]));
         }
-        
+        setIsCart(!isCart);
     }
     return (
-        <Grid xs="12" sm="3" item>
+        <Grid xs="12" sm="3" item className={(category.name + " " + product.name).toLowerCase().indexOf(searchName) != -1 ? classes.show : classes.hidden} >
             <Card elevation={3}>
                 <CardActionArea>
                     <CardMedia
                         className={classes.media}
-                        image="https://t7mobile.com/wp-content/uploads/2021/01/apple-iphone-12-256gb-silver.png"
+                        image="https://zicxaphotos.com/wp-content/uploads/2019/09/girl-xinh-cap-3.jpg"
                     />
                     <CardContent>
                         <Typography gutterBottom variant="subtitle1" align="center">{category.name + " " + product.name}</Typography>
@@ -74,7 +80,7 @@ export default function Product({
                 <CardActions>
                     <Grid container justify="center">
                         <Grid item>
-                            <Button size="small" variant={isCart?"contained":"outlined"} color="primary" onClick={(evt) => onclickAddToCartHandle(evt, category, product)}> {isCart ? "Bỏ khỏi" : "Thêm vào"} giỏ hàng</Button>
+                            <Button size="small" variant={isCart ? "contained" : "outlined"} color="primary" onClick={(evt) => onclickAddToCartHandle(evt, category, product)}> {isCart ? "Bỏ khỏi" : "Thêm vào"} giỏ hàng</Button>
                         </Grid>
                     </Grid>
                 </CardActions>

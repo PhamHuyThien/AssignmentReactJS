@@ -17,11 +17,15 @@ import Checkbox from '@material-ui/core/Checkbox';
 import List from '@material-ui/core/List';
 import ListItem from '@material-ui/core/ListItem';
 import ListItemText from '@material-ui/core/ListItemText';
+import ButtonGroup from '@material-ui/core/ButtonGroup';
+import Divider from '@material-ui/core/Divider';
+import Snackbar from '@material-ui/core/Snackbar';
+import Alert from '@material-ui/lab/Alert';
 
 import { useState, useEffect } from "react";
 import { useHistory } from "react-router-dom";
 import axios from "axios";
-import { formatMoney, nonAccentVietnamese, alert } from "../../lib/lib.js";
+import { formatMoney, nonAccentVietnamese, alert, isNumber, setTitleWeb} from "../../lib/lib.js";
 import Loading from "./Loading.js";
 
 import { callbackGetVoucher, callbackDeleteVoucher } from "./ManagerVoucher.js";
@@ -78,12 +82,121 @@ const useStyles = makeStyles((theme) => ({
     title: {
         marginTop: theme.spacing(2),
     },
+    buttonGr: {
+        width: "50px"
+    },
+    gridItem: {
+        margin: "5px 0",
+    }
 }));
 
+function OrderVerificationForm({
+    productOrder,
+    setProductOrder,
+}) {
+    const classes = useStyles();
+    return (
+        <React.Fragment>
+            <Typography variant="h6" gutterBottom>
+                Xác  thực đơn hàng
+		  </Typography>
+            <Grid container xs="12" sm="12" justify="space-between" alignItems="center" >
+                {
+                    productOrder.map((v, i) => {
+                        return <OrderVerificationItemForm productOrder={v} setProductOrder={setProductOrder} />;
+                    })
+                }
+            </Grid>
+        </React.Fragment>
+    );
+}
+
+function OrderVerificationItemForm({
+    productOrder, setProductOrder,
+}) {
+    const classes = useStyles();
+    const history = useHistory();
+    const [formData, setFormData] = useState(productOrder);
+
+    function onclickUp(evt) {
+        let data;
+        setFormData((oldData) => {
+            const newData = {
+                ...oldData,
+                count: ++oldData.count,
+                totalMoney: Number(oldData.product.price) * Number(oldData.count),
+            }
+            data = newData;
+            return newData;
+        });
+        setProductOrder((oldProductOrder) => {
+            return oldProductOrder.map((v, i) => {
+                return v.product.id == productOrder.product.id ? data : v;
+            });
+        })
+    }
+    function onclickDown(evt) {
+        if (formData.count - 1 == 0) {
+            return;
+        }
+        let data;
+        setFormData((oldData) => {
+            const newData = {
+                ...oldData,
+                count: --oldData.count < 1 ? 1 : oldData.count,
+                totalMoney: Number(oldData.product.price) * Number(oldData.count),
+            }
+            data = newData;
+            return newData;
+        });
+        setProductOrder((oldProductOrder) => {
+            return oldProductOrder.map((v, i) => {
+                return v.product.id == productOrder.product.id ? data : v;
+            });
+        });
+    }
+    function onclickDeleteHandle(evt) {
+        evt.preventDefault();
+        let length = -1;
+        setProductOrder((oldProductOrder) => {
+            let productOrderTmp = oldProductOrder.filter((v, i) => {
+                return v.product.id != productOrder.product.id;
+            });
+            length = productOrderTmp.length;
+            return productOrderTmp;
+        });
+        console.log(length);
+        if (length == 0) {
+            history.push("/order");
+        }
+    }
+    return (
+        <Grid container item xs="12" sm="12" spacing="3" className={classes.gridItem} >
+            <Grid item xs="12" sm="3">
+                <Typography>{formData.category.name + " " + formData.product.name}</Typography>
+                <Typography variant="body2">{formData.product.desc}</Typography>
+            </Grid>
+            <Grid item xs="12" sm="4" alignItems="center" >
+                <Typography>{formatMoney(formData.totalMoney) + " VND"}</Typography>
+            </Grid>
+            <Grid item xs="12" sm="3" >
+                <ButtonGroup color="primary" size="small" className={classes.buttonGr}>
+                    <Button variant="contained" color="secondary" onClick={onclickDown}>-</Button>
+                    <TextField value={formData.count}></TextField>
+                    <Button variant="contained" color="primary" onClick={onclickUp}>+</Button>
+                </ButtonGroup>
+            </Grid>
+            <Grid item xs="12" sm="2" justify="center">
+                <Button variant="contained" color="secondary" onClick={onclickDeleteHandle}>Delete</Button>
+            </Grid>
+        </Grid>
+    );
+}
 function AddressForm({
     setAndresses,
     andresses,
     setLoad,
+    snackAlert,
 }) {
     useEffect(() => {
         loadFake();
@@ -144,6 +257,9 @@ function AddressForm({
                     />
                 </Grid>
             </Grid>
+            <Snackbar open={snackAlert.open} autoHideDuration={1000}>
+                <Alert elevation={6} variant="filled" severity={snackAlert.type}>{snackAlert.text}</Alert>
+            </Snackbar>
         </React.Fragment>
     );
 }
@@ -211,8 +327,17 @@ function PaymentForm({
 }
 
 function Review({
-    productOrder, andresses, payment, totalPay, setTotalPay, setLoad,
+    productOrder, andresses, payment, setLoad,
 }) {
+    const [totalPay, setTotalPay] = useState(getTotalPay(productOrder));
+
+    function getTotalPay(productOrder) {
+        let total = 0;
+        for (let i = 0; i < productOrder.length; i++) {
+            total += Number(productOrder[i].totalMoney);
+        }
+        return total;
+    }
     useEffect(() => {
         loadFake();
     }, []);
@@ -278,7 +403,8 @@ function Review({
                         return (
                             <ListItem className={classes.listItem}>
                                 <ListItemText primary={v.category.name + " " + v.product.name} secondary={v.product.desc} />
-                                <Typography variant="body2">{formatMoney(v.product.price) + " VNĐ"}</Typography>
+                                <ListItemText primary={"X" + v.count} secondary={"sản phẩm"} />
+                                <Typography variant="body2">{formatMoney(v.totalMoney) + " VNĐ"}</Typography>
                             </ListItem>
                         );
                     })
@@ -310,49 +436,11 @@ function Review({
             <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
                     <Typography variant="h6" gutterBottom className={classes.title}>
-                        Địa chỉ giao hàng:
+                        Thông tin giao hàng:
 			  </Typography>
-                    <Typography gutterBottom>{andresses.name}</Typography>
-                    <Typography gutterBottom>{andresses.add}</Typography>
-                </Grid>
-                <Grid item container direction="column" xs={12} sm={6}>
-                    <Typography variant="h6" gutterBottom className={classes.title}>
-                        Phương thức thanh toán:
-			  </Typography>
-                    <Grid container>
-                        <React.Fragment >
-                            <Grid item xs={6}>
-                                <Typography gutterBottom>Tên chủ thẻ:</Typography>
-                            </Grid>
-                            <Grid item xs={6}>
-                                <Typography gutterBottom>{payment.name}</Typography>
-                            </Grid>
-                        </React.Fragment>
-                        <React.Fragment>
-                            <Grid item xs={6}>
-                                <Typography gutterBottom>Số tài khoản:</Typography>
-                            </Grid>
-                            <Grid item xs={6}>
-                                <Typography gutterBottom>{payment.code}</Typography>
-                            </Grid>
-                        </React.Fragment>
-                        <React.Fragment>
-                            <Grid item xs={6}>
-                                <Typography gutterBottom>Ngày hết hạn</Typography>
-                            </Grid>
-                            <Grid item xs={6}>
-                                <Typography gutterBottom>{payment.ex}</Typography>
-                            </Grid>
-                        </React.Fragment>
-                        <React.Fragment>
-                            <Grid item xs={6}>
-                                <Typography gutterBottom>CVV</Typography>
-                            </Grid>
-                            <Grid item xs={6}>
-                                <Typography gutterBottom>{payment.cvv}</Typography>
-                            </Grid>
-                        </React.Fragment>
-                    </Grid>
+                    <Typography gutterBottom>Tên: {andresses.name}</Typography>
+                    <Typography gutterBottom>Địa chỉ: {andresses.add}</Typography>
+                    <Typography gutterBottom>SDT: {andresses.phone}</Typography>
                 </Grid>
             </Grid>
         </React.Fragment>
@@ -370,6 +458,7 @@ export default function Checkout({
             history.push("/order");
         }
         setTitle("Thủ tục thanh toán");
+        setTitleWeb("Thủ  tục thanh toán");
     }, []);
     const [load, setLoad] = useState(false);
     const classes = useStyles();
@@ -377,21 +466,42 @@ export default function Checkout({
 
     const [andresses, setAddresses] = useState(guest);
     const [payment, setPayment] = useState({ name: nonAccentVietnamese(guest.name).toUpperCase(), code: "1234.5678.9999.9999", ex: "02/2024", cvv: "999" });
-    const [totalPay, setTotalPay] = useState(getTotalPay(productOrder));
 
-    function getTotalPay(productOrder) {
-        let total = 0;
-        for (let i = 0; i < productOrder.length; i++) {
-            total += Number(productOrder[i].product.price);
+    const [snackAlert, setSnackAlert] = useState({ open: false, text: "", type: "warning" });
+    function snackBarAlert(text, type = "warning", timeout = 1500, open = true) {
+        setSnackAlert({
+            open: open,
+            text: text,
+            type: type,
+        });
+        if (open == true) {
+            setTimeout(() => {
+                snackBarAlert(text, type, timeout, false);
+            }, timeout);
         }
-        return total;
     }
+
     const handleNext = () => {
-        setActiveStep(activeStep + 1);
-        if(activeStep==2){
-            setProductOrder([]);
-            setTimeout(()=>{ history.push("/order")}, 10000);
+        if (activeStep == 1) {
+            if (andresses.name.trim() == "") {
+                snackBarAlert("Tên không được để trống!");
+                return;
+            }
+            if (andresses.add.trim() == "") {
+                snackBarAlert("Địa chỉ không được để trống!");
+                return;
+            }
+            if (!isNumber(andresses.phone) || andresses.phone.length != 10) {
+                snackBarAlert("Số điện thoại không hợp lệ!");
+                return;
+            }
         }
+        if (activeStep == 2) {
+            setProductOrder([]);
+            setTimeout(() => { history.push("/order") }, 10000);
+        }
+        setActiveStep(activeStep + 1);
+
     };
 
     const handleBack = () => {
@@ -400,11 +510,13 @@ export default function Checkout({
     function getStepContent(step) {
         switch (step) {
             case 0:
-                return <AddressForm setAddresses={setAddresses} andresses={andresses} setAndresses={setAddresses} setLoad={setLoad} />;
+                return <OrderVerificationForm productOrder={productOrder} setProductOrder={setProductOrder} />
             case 1:
-                return <PaymentForm payment={payment} setPayment={setPayment} setLoad={setLoad} />;
+                return <AddressForm snackAlert={snackAlert} setAddresses={setAddresses} andresses={andresses} setAndresses={setAddresses} setLoad={setLoad} />;
+            // case 2:
+            //     return <PaymentForm payment={payment} setPayment={setPayment} setLoad={setLoad} />;
             case 2:
-                return <Review productOrder={productOrder} andresses={andresses} payment={payment} totalPay={totalPay} setTotalPay={setTotalPay} setLoad={setLoad} />;
+                return <Review productOrder={productOrder} andresses={andresses} payment={payment} setLoad={setLoad} />;
             default:
                 throw new Error('Unknown step');
         }
@@ -428,11 +540,14 @@ export default function Checkout({
           </Typography>
                     <Stepper activeStep={activeStep} className={classes.stepper}>
                         <Step>
-                            <StepLabel>Địa chỉ giao hàng</StepLabel>
+                            <StepLabel>Xác thực đơn hàng</StepLabel>
                         </Step>
                         <Step>
-                            <StepLabel>Chi tiết thanh toán</StepLabel>
+                            <StepLabel>Địa chỉ giao hàng</StepLabel>
                         </Step>
+                        {/* <Step>
+                            <StepLabel>Chi tiết thanh toán</StepLabel>
+                        </Step> */}
                         <Step>
                             <StepLabel>Xem lại đơn hàng</StepLabel>
                         </Step>
@@ -440,35 +555,35 @@ export default function Checkout({
                     <React.Fragment>
                         {activeStep === 3 ? (
                             <React.Fragment>
-                            <Typography variant="h5" gutterBottom>
-                                Đặt hàng thành công!
+                                <Typography variant="h5" gutterBottom>
+                                    Đặt hàng thành công!
                                 </Typography>
-                            <Typography variant="subtitle1">
-                                Số đơn đặt hàng của bạn là #2001539. Chúng tôi sẽ gửi cho bạn thông tin cập nhật khi đơn hàng của bạn đã được giao.
+                                <Typography variant="subtitle1">
+                                    Số đơn đặt hàng của bạn là #{Math.floor(Math.random() * Math.floor(999999))}. Chúng tôi sẽ gửi cho bạn thông tin cập nhật khi đơn hàng của bạn đã được giao.
                                 </Typography>
                                 <Typography variant="subtitle2">
                                     Trang sẽ trở về trang chủ sau 10s...
                                 </Typography>
-                        </React.Fragment>
+                            </React.Fragment>
                         ) : (
                                 <React.Fragment>
-                            {getStepContent(activeStep)}
-                            <div className={classes.buttons}>
-                                {activeStep !== 0 && (
-                                    <Button onClick={handleBack} className={classes.button}>
-                                        Trở lại
-                                    </Button>
-                                )}
-                                <Button
-                                    variant="contained"
-                                    color="primary"
-                                    onClick={handleNext}
-                                    className={classes.button}
-                                >
-                                    {activeStep === 2 ? 'Đặt hàng' : 'Tiếp theo'}
-                                </Button>
-                            </div>
-                        </React.Fragment>
+                                    {getStepContent(activeStep)}
+                                    <div className={classes.buttons}>
+                                        {activeStep !== 0 && (
+                                            <Button onClick={handleBack} className={classes.button}>
+                                                Trở lại
+                                            </Button>
+                                        )}
+                                        <Button
+                                            variant="contained"
+                                            color="primary"
+                                            onClick={handleNext}
+                                            className={classes.button}
+                                        >
+                                            {activeStep === 2 ? 'Đặt hàng' : 'Tiếp theo'}
+                                        </Button>
+                                    </div>
+                                </React.Fragment>
                             )}
                     </React.Fragment>
                 </Paper>

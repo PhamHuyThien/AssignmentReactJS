@@ -7,6 +7,8 @@ import TextField from '@material-ui/core/TextField';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Checkbox from '@material-ui/core/Checkbox';
 import Button from '@material-ui/core/Button';
+import Snackbar from '@material-ui/core/Snackbar';
+import Alert from '@material-ui/lab/Alert';
 
 
 import { withStyles, makeStyles } from '@material-ui/core/styles';
@@ -23,7 +25,7 @@ import Paper from '@material-ui/core/Paper';
 import { useState, useEffect } from "react";
 import { useHistory, useRouteMatch } from "react-router-dom";
 import axios from "axios";
-import { formatMoney, milisToDateMaterial, dateMaterialToMilis, alert } from "../../lib/lib.js";
+import { formatMoney, milisToDateMaterial, dateMaterialToMilis, alert, confirm, isNumber, setTitleWeb } from "../../lib/lib.js";
 import Loading from "./Loading.js";
 
 const URL = "https://60177109f534300017a45537.mockapi.io/voucher";
@@ -85,19 +87,47 @@ export default function ManagerVoucher({
     const classes = useStyles();
     const history = useHistory();
     const [voucher, setVoucher] = useState([]);
+    const [voucherRoot, setVoucherRoot] = useState([]);
     const [clickId, setClickId] = useState(-1);
     const [formData, setFormData] = useState({ id: "", code: "", discount: "", desc: "", time_end: milisToDateMaterial(new Date().getTime()) });
+    const [searchForm, setSearchForm] = useState("");
     const [page, setPage] = useState(Number(searchs.get("page") == null ? 1 : searchs.get("page")));
     const [load, setLoad] = useState(false);
     useEffect(() => {
         setTitle("Quản lý mã giảm giá");
+        setTitleWeb("Quản lý mã giảm giá");
         if (guest.permission != 0) {
             history.push("/order");
         }
         setLoad(true);
         updateVoucher(page);
     }, []);
-
+    const [snackAlert, setSnackAlert] = useState({ open: false, text: "", type: "warning" });
+    function snackBarAlert(text, type = "warning", timeout = 1500, open = true) {
+        setSnackAlert({
+            open: open,
+            text: text,
+            type: type,
+        });
+        if (open == true) {
+            setTimeout(() => {
+                snackBarAlert(text, type, timeout, false);
+            }, timeout);
+        }
+    }
+    function onchangeSearchHandle(evt) {
+        let value = evt.target.value;
+        setSearchForm(value);
+        if(value.trim() != ""){
+            setVoucher((old)=>{
+                return voucherRoot.filter((v, i)=>{
+                    return v.code.toLowerCase().indexOf(value)!==-1;
+                });
+            });
+        }else{
+            setVoucher(voucherRoot);
+        }
+    }
     const onchangeInputHandler = (evt) => {
         setFormData({
             ...formData,
@@ -117,12 +147,15 @@ export default function ManagerVoucher({
     }
     const onclickAddHandle = (evt) => {
         evt.preventDefault();
+        if(!checkFormVoucher()){
+            return;
+        }
         setLoad(true);
         if (clickId == -1) {
             callbackPostVoucher(
                 formData,
                 (resp) => {
-                    alert("Thành công!", "Thêm thành công!", "success", ()=>updateVoucher(page));
+                    alert("Thành công!", "Thêm thành công!", "success", () => updateVoucher(page));
                 },
                 (err) => {
                     setLoad(false);
@@ -134,7 +167,7 @@ export default function ManagerVoucher({
                 clickId,
                 formData,
                 (resp) => {
-                    alert("Thành công!", "Sửa thành công!", "success", ()=>updateVoucher(page));
+                    alert("Thành công!", "Sửa thành công!", "success", () => updateVoucher(page));
                 },
                 (err) => {
                     setLoad(false);
@@ -147,17 +180,19 @@ export default function ManagerVoucher({
         evt.preventDefault();
         setLoad(true);
         if (clickId != -1) {
-            callbackDeleteVoucher(
-                clickId,
-                (resp) => {
-                    alert("Thành công!", "Xoá thành công!", "success", ()=>updateVoucher(page));
-                },
-                (err) => {
-                    setLoad(false);
-                    alert("Thất bại!", "Xóa thất bại!", "error");
-                }
-            );
-        }else{
+            confirm("Xóa?", "Bạn chắc chắn muốn xóa?", "warning", ()=>{
+                callbackDeleteVoucher(
+                    clickId,
+                    (resp) => {
+                        alert("Thành công!", "Xoá thành công!", "success", () => updateVoucher(page));
+                    },
+                    (err) => {
+                        setLoad(false);
+                        alert("Thất bại!", "Xóa thất bại!", "error");
+                    }
+                );
+            }, setLoad(false));            
+        } else {
             illusionLoading();
         }
 
@@ -174,6 +209,7 @@ export default function ManagerVoucher({
             page,
             (data) => {
                 setLoad(false);
+                setVoucherRoot(data.data);
                 setVoucher(data.data);
             },
             (err) => {
@@ -181,7 +217,21 @@ export default function ManagerVoucher({
             }
         );
     }
-
+    function checkFormVoucher(){
+        if(formData.code.trim()==""){
+            snackBarAlert("Mã giảm giá không được để trống!");
+            return false;
+        }
+        if(!isNumber(formData.discount)){
+            snackBarAlert("số tiền giảm giá không hợp lệ!");
+            return false;
+        }
+        if(formData.desc.trim()==""){
+            snackBarAlert("Nội dung không được để trống!");
+            return false;
+        }
+        return true;
+    }
     const illusionLoading = (time = 200) => {
         setLoad(true);
         setTimeout(() => { setLoad(false) }, time);
@@ -263,6 +313,15 @@ export default function ManagerVoucher({
                     </Paper>
                 </Grid>
                 <Grid item xs={12} sm={6}>
+                    <Grid item xs={6} sm={3}>
+                        <TextField
+                            name="search"
+                            label="Tìm kiếm..."
+                            fullWidth
+                            value={searchForm}
+                            onChange={onchangeSearchHandle}
+                        />
+                    </Grid>
                     <TableContainer component={Paper}>
                         <Table>
                             <TableHead>
@@ -294,6 +353,9 @@ export default function ManagerVoucher({
                     <Pagination count={10} page={page} onChange={onchangePagginationHandle} />
                 </Grid>
             </Grid>
+            <Snackbar open={snackAlert.open} autoHideDuration={1000}>
+                <Alert elevation={6} variant="filled" severity={snackAlert.type}>{snackAlert.text}</Alert>
+            </Snackbar>
         </Container>
     );
 }

@@ -11,12 +11,14 @@ import { makeStyles } from '@material-ui/core/styles';
 import Container from '@material-ui/core/Container';
 import Paper from '@material-ui/core/Paper';
 import Backdrop from "@material-ui/core/Backdrop"
+import Snackbar from '@material-ui/core/Snackbar';
+import Alert from '@material-ui/lab/Alert';
 
 import { useEffect, useState } from "react";
 import { useHistory } from "react-router-dom";
 
 import axios from "axios";
-import { alert } from "../../lib/lib.js";
+import { alert, setTitleWeb } from "../../lib/lib.js";
 
 import Loading from "./Loading.js";
 
@@ -53,17 +55,32 @@ export default function Login({
 }) {
     const classes = useStyles();
     const history = useHistory();
+    const [formData, setFormData] = useState({ u: "", p: "" });
     const [load, setLoad] = useState(false);
 
     useEffect(() => {
         setTitle("Đăng Nhập");
+        setTitleWeb("Đăng nhập");
         if (guest.permission != 2) {
             history.push("/account");
         }
         illusionLoading(500);
     }, []);
 
-    const [formData, setFormData] = useState({ u: "", p: "" });
+    const [snackAlert, setSnackAlert] = useState({ open: false, text: "", type: "warning" });
+    function snackBarAlert(text, type = "warning", timeout = 1500, open = true) {
+        setSnackAlert({
+            open: open,
+            text: text,
+            type: type,
+        });
+        if (open == true) {
+            setTimeout(() => {
+                snackBarAlert(text, type, timeout, false);
+            }, timeout);
+        }
+    }
+
     const onChangeInputHandle = (evt) => {
         setFormData((oldData) => {
             return {
@@ -74,13 +91,16 @@ export default function Login({
     }
     const onClickLoginHandler = (evt) => {
         evt.preventDefault();
+        if (!checkFormLogin()) {
+            return;
+        }
         setLoad(true);
         callbackLogin(formData,
             (data) => {
                 setGuest(data);
                 setLoad(false);
                 setProductOrder([]);
-                alert("Thành công!", "Đăng nhập thành công!", "success", function(){history.push("/order")});
+                alert("Thành công!", "Đăng nhập thành công!", "success", function () { history.push("/order") });
             },
             (e) => {
                 setLoad(false);
@@ -89,6 +109,17 @@ export default function Login({
         );
     }
 
+    function checkFormLogin() {
+        if (formData.u.trim() == "") {
+            snackBarAlert("Tài khoản không được để trống!");
+            return false;
+        }
+        if (formData.p.trim() == "") {
+            snackBarAlert("Mật khẩu không được để trống!");
+            return false;
+        }
+        return true;
+    }
     const illusionLoading = (time = 200) => {
         setLoad(true);
         setTimeout(() => { setLoad(false) }, time);
@@ -170,7 +201,9 @@ export default function Login({
                     </Grid>
                 </form>
             </Paper>
-
+            <Snackbar open={snackAlert.open} autoHideDuration={1000}>
+                <Alert elevation={6} variant="filled" severity={snackAlert.type}>{snackAlert.text}</Alert>
+            </Snackbar>
         </Container>
     );
 }

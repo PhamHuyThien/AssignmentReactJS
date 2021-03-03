@@ -19,12 +19,14 @@ import TableRow from '@material-ui/core/TableRow';
 import Pagination from '@material-ui/lab/Pagination';
 import Paper from '@material-ui/core/Paper';
 
+import Snackbar from '@material-ui/core/Snackbar';
+import Alert from '@material-ui/lab/Alert';
 
 import { useState, useEffect } from "react";
 import { useHistory, useRouteMatch } from "react-router-dom";
 import axios from "axios";
 
-import { alert } from "../../lib/lib.js";
+import { alert, confirm, setTitleWeb } from "../../lib/lib.js";
 import Loading from "./Loading.js";
 
 const URL = "https://60177109f534300017a45537.mockapi.io/portfolio";
@@ -58,12 +60,18 @@ export default function ManagerCategory({
     const classes = useStyles();
     const history = useHistory();
     const [category, setCategory] = useState([]);
+    const [categoryRoot, setCategoryRoot] = useState([]);
     const [clickId, setClickId] = useState(-1);
     const [formData, setFormData] = useState({ id: "", name: "" });
     const [page, setPage] = useState(Number(searchs.get("page") == null ? 1 : searchs.get("page")));
+    const [searchForm, setSearchForm] = useState("");
     const [load, setLoad] = useState(false);
+    const [snackAlert, setSnackAlert] = useState({ open: false, text: "", type: "warning" });
+
+
     useEffect(() => {
         setTitle("Quản lý mặt hàng");
+        setTitleWeb("Quản lý mặt hàng");
         if (guest.permission != 0) {
             history.push("/order");
         }
@@ -71,11 +79,37 @@ export default function ManagerCategory({
         updateCategory(page);
     }, []);
 
+    function snackBarAlert(text, type = "warning", timeout = 1500, open = true) {
+        setSnackAlert({
+            open: open,
+            text: text,
+            type: type,
+        });
+        if (open == true) {
+            setTimeout(() => {
+                snackBarAlert(text, type, timeout, false);
+            }, timeout);
+        }
+    }
     const onchangeInputHandler = (evt) => {
         setFormData({
             ...formData,
             [evt.target.name]: evt.target.value
         });
+    }
+
+    function onchangeSearchHandle(evt) {
+        evt.preventDefault();
+        setSearchForm(evt.target.value);
+        if (evt.target.value.trim() != "") {
+            setCategory(() => {
+                return categoryRoot.filter((v, i) => {
+                    return v.name.toLowerCase().indexOf(evt.target.value.trim()) != -1;
+                });
+            });
+        } else {
+            setCategory(categoryRoot);
+        }
     }
 
     const onclickRowTableHandler = (evt, v, i) => {
@@ -90,6 +124,9 @@ export default function ManagerCategory({
     }
     const onclickAddHandle = (evt) => {
         evt.preventDefault();
+        if (!checkFormCategory()) {
+            return;
+        }
         setLoad(true);
         if (clickId == -1) {
             setLoad(true);
@@ -110,7 +147,7 @@ export default function ManagerCategory({
                 clickId,
                 formData,
                 (resp) => {
-                    alert("Thành công!", "Sửa thành công!", "success", ()=>updateCategory(page));
+                    alert("Thành công!", "Sửa thành công!", "success", () => updateCategory(page));
                 },
                 (err) => {
                     setLoad(false);
@@ -121,19 +158,22 @@ export default function ManagerCategory({
     }
     const onclickDeleteHandle = (evt) => {
         evt.preventDefault();
+        setLoad(true);
         if (clickId != -1) {
-            setLoad(true);
-            callbackDeleteCategory(
-                clickId,
-                (resp) => {
-                    alert("Thành công!", "Xoá thành công!", "success", ()=>updateCategory(page));
-                },
-                (err) => {
-                    setLoad(false);
-                    alert("Xóa thất bại!");
-                }
-            );
-        }else{
+            confirm("Xóa?", "Bạn chắc chắn muốn xóa chứ?", "warning", () => {
+                callbackDeleteCategory(
+                    clickId,
+                    (resp) => {
+                        alert("Thành công!", "Xoá thành công!", "success", () => updateCategory(page));
+                    },
+                    (err) => {
+                        setLoad(false);
+                        alert("Xóa thất bại!");
+                    }
+                );
+            }, setLoad(false));
+
+        } else {
             illusionLoading();
         }
 
@@ -144,11 +184,11 @@ export default function ManagerCategory({
         setPage(value);
         updateCategory(value);
     }
-    const updateCategory = (page) => {
-        page = typeof page == "undefined" ? 1 : page;
+    const updateCategory = (page = 1) => {
         callbackGetCategory(
             page,
             (data) => {
+                setCategoryRoot(data.data);
                 setCategory(data.data);
                 setLoad(false);
             },
@@ -159,9 +199,17 @@ export default function ManagerCategory({
         );
     }
 
-    const illusionLoading = (time=200)=>{
+    function checkFormCategory() {
+        if (formData.name.trim() == "") {
+            snackBarAlert("Tên thể loại không được để trống!");
+            return false;
+        }
+        return true;
+    }
+
+    const illusionLoading = (time = 200) => {
         setLoad(true);
-        setTimeout(()=>{setLoad(false)}, time);
+        setTimeout(() => { setLoad(false) }, time);
     }
 
     const callbackGetCategory = (page, succ, err) => {
@@ -198,7 +246,7 @@ export default function ManagerCategory({
                     <Paper className={classes.paperForm}>
                         <Typography variant="h6" gutterLeft>
                             Mặt hàng:
-      </Typography>
+                        </Typography>
                         <Grid container spacing={3}>
                             <Grid item xs={12} sm={12}>
                                 <TextField
@@ -234,6 +282,15 @@ export default function ManagerCategory({
                     </Paper>
                 </Grid>
                 <Grid item xs={12} sm={6}>
+                    <Grid item xs={6} sm={3}>
+                        <TextField
+                            name="search"
+                            label="Tìm kiếm..."
+                            fullWidth
+                            value={searchForm}
+                            onChange={onchangeSearchHandle}
+                        />
+                    </Grid>
                     <TableContainer component={Paper}>
                         <Table>
                             <TableHead>
@@ -259,6 +316,9 @@ export default function ManagerCategory({
                     <Pagination count={10} page={page} onChange={onchangePagginationHandle} />
                 </Grid>
             </Grid>
+            <Snackbar open={snackAlert.open} autoHideDuration={1000}>
+                <Alert elevation={6} variant="filled" severity={snackAlert.type}>{snackAlert.text}</Alert>
+            </Snackbar>
         </Container>
     );
 }
